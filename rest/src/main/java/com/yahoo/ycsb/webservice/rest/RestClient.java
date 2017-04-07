@@ -1,12 +1,12 @@
 /**
  * Copyright (c) 2016 YCSB contributors. All rights reserved.
- *
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
  * may obtain a copy of the License at
- *
+ * <p>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
@@ -17,39 +17,21 @@
 
 package com.yahoo.ycsb.webservice.rest;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.HashMap;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Vector;
-import java.util.zip.GZIPInputStream;
-
-import javax.ws.rs.HttpMethod;
-
+import com.yahoo.ycsb.*;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpDelete;
-import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpPut;
+import org.apache.http.client.methods.*;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
 
-import com.yahoo.ycsb.ByteIterator;
-import com.yahoo.ycsb.DB;
-import com.yahoo.ycsb.DBException;
-import com.yahoo.ycsb.Status;
-import com.yahoo.ycsb.StringByteIterator;
+import javax.ws.rs.HttpMethod;
+import java.io.*;
+import java.util.*;
+import java.util.zip.GZIPInputStream;
 
 /**
  * Class responsible for making web service requests for benchmarking purpose.
@@ -104,13 +86,13 @@ public class RestClient extends DB {
   public Status read(String table, String endpoint, Set<String> fields, HashMap<String, ByteIterator> result) {
     int responseCode;
     try {
-      responseCode = httpGet(urlPrefix + endpoint, result);
+      responseCode = httpGet(urlPrefix + endpoint + ".json", result);
     } catch (Exception e) {
-      responseCode = handleExceptions(e, urlPrefix + endpoint, HttpMethod.GET);
+      responseCode = handleExceptions(e, urlPrefix + endpoint + ".json", HttpMethod.GET);
     }
     if (logEnabled) {
-      System.err.println(new StringBuilder("GET Request: ").append(urlPrefix).append(endpoint)
-            .append(" | Response Code: ").append(responseCode).toString());
+      System.err.println(new StringBuilder("GET Request: ").append(urlPrefix).append(endpoint + ".json")
+          .append(" | Response Code: ").append(responseCode).toString());
     }
     return getStatus(responseCode);
   }
@@ -118,29 +100,54 @@ public class RestClient extends DB {
   @Override
   public Status insert(String table, String endpoint, HashMap<String, ByteIterator> values) {
     int responseCode;
+    String data = null;
     try {
-      responseCode = httpExecute(new HttpPost(urlPrefix + endpoint), values.get("data").toString());
+//      System.out.println(table);
+//      System.out.println(endpoint);
+//      System.out.println(values);
+
+      responseCode = httpExecute(new HttpPost(urlPrefix + endpoint + ".json"), mapToJson(values));
     } catch (Exception e) {
-      responseCode = handleExceptions(e, urlPrefix + endpoint, HttpMethod.POST);
+      responseCode = handleExceptions(e, urlPrefix + endpoint + ".json", HttpMethod.POST);
     }
     if (logEnabled) {
-      System.err.println(new StringBuilder("POST Request: ").append(urlPrefix).append(endpoint)
-            .append(" | Response Code: ").append(responseCode).toString());
+      System.err.println(new StringBuilder("POST Request: ").append(urlPrefix).append(endpoint + ".json")
+          .append(" | Response Code: ").append(responseCode).toString());
+      if(200 != responseCode) {
+        System.out.println(data);
+      }
     }
     return getStatus(responseCode);
+  }
+
+  private String mapToJson(HashMap<String, ByteIterator> values) {
+    String data = null;
+    for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
+
+//        StringBuilder valueBuilder = new StringBuilder();
+//        while(entry.getValue().hasNext()) {
+//          valueBuilder.append(entry.getValue().nextByte());
+//        }
+      String escapedClear = entry.getValue().toString()
+          .replaceAll("\"", "'")
+          .replaceAll("\\\\", "/")
+          .replaceAll("\\n", "");
+      data = "{\"" + entry.getKey() + "\":\"" + escapedClear + "\"}";
+    }
+    return data;
   }
 
   @Override
   public Status delete(String table, String endpoint) {
     int responseCode;
     try {
-      responseCode = httpDelete(urlPrefix + endpoint);
+      responseCode = httpDelete(urlPrefix + endpoint + ".json");
     } catch (Exception e) {
-      responseCode = handleExceptions(e, urlPrefix + endpoint, HttpMethod.DELETE);
+      responseCode = handleExceptions(e, urlPrefix + endpoint + ".json", HttpMethod.DELETE);
     }
     if (logEnabled) {
-      System.err.println(new StringBuilder("DELETE Request: ").append(urlPrefix).append(endpoint)
-            .append(" | Response Code: ").append(responseCode).toString());
+      System.err.println(new StringBuilder("DELETE Request: ").append(urlPrefix).append(endpoint + ".json")
+          .append(" | Response Code: ").append(responseCode).toString());
     }
     return getStatus(responseCode);
   }
@@ -149,13 +156,17 @@ public class RestClient extends DB {
   public Status update(String table, String endpoint, HashMap<String, ByteIterator> values) {
     int responseCode;
     try {
-      responseCode = httpExecute(new HttpPut(urlPrefix + endpoint), values.get("data").toString());
+//      System.out.println(table);
+//      System.out.println(endpoint);
+//      System.out.println(values);
+
+      responseCode = httpExecute(new HttpPut(urlPrefix + endpoint + ".json"), mapToJson(values));
     } catch (Exception e) {
-      responseCode = handleExceptions(e, urlPrefix + endpoint, HttpMethod.PUT);
+      responseCode = handleExceptions(e, urlPrefix + endpoint + ".json", HttpMethod.PUT);
     }
     if (logEnabled) {
-      System.err.println(new StringBuilder("PUT Request: ").append(urlPrefix).append(endpoint)
-            .append(" | Response Code: ").append(responseCode).toString());
+      System.err.println(new StringBuilder("PUT Request: ").append(urlPrefix).append(endpoint + ".json")
+          .append(" | Response Code: ").append(responseCode).toString());
     }
     return getStatus(responseCode);
   }
@@ -190,8 +201,9 @@ public class RestClient extends DB {
       System.err.println(new StringBuilder(method).append(" Request: ").append(url).append(" | ")
           .append(e.getClass().getName()).append(" occured | Error message: ")
           .append(e.getMessage()).toString());
+      e.printStackTrace();
     }
-      
+
     if (e instanceof ClientProtocolException) {
       return 400;
     }
@@ -265,7 +277,7 @@ public class RestClient extends DB {
     if (responseEntity != null) {
       InputStream stream = responseEntity.getContent();
       if (compressedResponse) {
-        stream = new GZIPInputStream(stream); 
+        stream = new GZIPInputStream(stream);
       }
       BufferedReader reader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
       StringBuffer responseContent = new StringBuffer();
@@ -291,7 +303,7 @@ public class RestClient extends DB {
     client.close();
     return responseCode;
   }
-  
+
   private int httpDelete(String endpoint) throws IOException {
     requestTimedout.setIsSatisfied(false);
     Thread timer = new Thread(new Timer(execTimeout, requestTimedout));
@@ -360,7 +372,7 @@ public class RestClient extends DB {
   class TimeoutException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
-    
+
     public TimeoutException() {
       super("HTTP Request exceeded execution time limit.");
     }
