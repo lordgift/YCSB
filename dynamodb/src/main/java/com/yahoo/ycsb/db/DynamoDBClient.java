@@ -71,8 +71,9 @@ public class DynamoDBClient extends DB {
 
   @Override
   public void init() throws DBException {
+//    System.out.println("INITIALIZING DYNAMODB");
     String debug = getProperties().getProperty("dynamodb.debug", null);
-
+//    debug = "false";
     if (null != debug && "true".equalsIgnoreCase(debug)) {
       LOGGER.setLevel(Level.DEBUG);
     }
@@ -83,6 +84,16 @@ public class DynamoDBClient extends DB {
     String primaryKeyTypeString = getProperties().getProperty("dynamodb.primaryKeyType", null);
     String consistentReads = getProperties().getProperty("dynamodb.consistentReads", null);
     String connectMax = getProperties().getProperty("dynamodb.connectMax", null);
+
+    String ycsbPath = "/mnt/c/Users/LordGift/Desktop/YCSB";
+
+    configuredEndpoint = "http://dynamodb.ap-southeast-1.amazonaws.com";
+    credentialsFile = ycsbPath + "/dynamodb/conf/AWSCredentials.properties";
+    primaryKey = "userId";
+    primaryKeyTypeString ="HASH";
+//    consistentReads = "false";
+//    connectMax = "50";
+//    System.out.println(">>>>>>>>>>>>>>>>>>"+primaryKey);
 
     if (null != connectMax) {
       this.maxConnects = Integer.parseInt(connectMax);
